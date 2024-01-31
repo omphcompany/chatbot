@@ -1,7 +1,7 @@
 import { BingChat } from '@bing-ai/chat';
 
 const bingClient = new BingChat({
-  apiKey: process.env.BING_API_KEY
+  apiKey: process.env.BING_AI_API_KEY
 });
 
 export async function POST(request) {
