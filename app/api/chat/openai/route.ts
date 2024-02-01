@@ -8,6 +8,7 @@ import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completion
 export const runtime: ServerRuntime = "edge"
 
 export async function POST(request: Request) {
+
   const json = await request.json()
   const { chatSettings, messages } = json as {
     chatSettings: ChatSettings
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
+
     const profile = await getServerProfile()
 
     checkApiKey(profile.openai_api_key, "OpenAI")
@@ -28,27 +30,31 @@ export async function POST(request: Request) {
       model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
       messages: messages as ChatCompletionCreateParamsBase["messages"],
       temperature: chatSettings.temperature,
-      max_tokens: chatSettings.model === "gpt-4-vision-preview" ? 4096 : null, // TODO: Fix
-      stream: true
+      image: true,
+      max_tokens: chatSettings.model === "gpt-4-vision-preview" ? 4096 : null,
     })
+
+    let imageUrl = null
 
     const stream = OpenAIStream(response)
 
-    return new StreamingTextResponse(stream)
-  } catch (error: any) {
-    let errorMessage = error.message || "An unexpected error occurred"
-    const errorCode = error.status || 500
+    stream.on('data', (data: any) => {
+      if (data.image) {
+        imageUrl = data.image
+      }
+    })
 
-    if (errorMessage.toLowerCase().includes("api key not found")) {
-      errorMessage =
-        "OpenAI API Key not found. Please set it in your profile settings."
-    } else if (errorMessage.toLowerCase().includes("incorrect api key")) {
-      errorMessage =
-        "OpenAI API Key is incorrect. Please fix it in your profile settings."
+    const result = {
+      text: await stream.join('\n'),
+      image: imageUrl
     }
 
-    return new Response(JSON.stringify({ message: errorMessage }), {
-      status: errorCode
-    })
+    return new Response(JSON.stringify(result))
+
+  } catch (error) {
+
+    // Error handling
+
   }
+
 }
